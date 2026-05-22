@@ -1,0 +1,120 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eomatch"
+dynamic = ["version"]
+description = "Match up dataset generation for Earth Observation satellites"
+readme = "README.md"
+license-files = ["LICENSE"]
+authors = [{name = "MetEOR Toolkit Team", email = "team@comet-toolkit.org"}]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "shapely",
+    "numpy",
+    "matheo",
+    "xarray",
+    "pystac",
+    "processor_tools",
+    "scrappi",
+    "eoio",
+    "orbitx"
+]
+
+[project.optional-dependencies]
+ingest = [
+    "pypgstac>=0.9",
+    "psycopg[binary]>=3",
+    "psycopg-pool>=3",
+]
+query = [
+    "pystac-client>=0.7",
+]
+enrich = [
+    "pysolar",
+    "geopandas",
+    "geodatasets",
+]
+dev = [
+    "ruff",
+    "mypy",
+    "pre-commit",
+    "pytest",
+    "pytest-html",
+    "pytest-cov",
+    "ipython",
+]
+docs = [
+    "sphinx",
+    "sphinx_rtd_theme",
+    "sphinx_book_theme",
+    "sphinx_design",
+    "sphinx_automodapi",
+    "myst_parser",
+]
+
+[project.scripts]
+eomatch-init = "eomatch.config:init_cli"
+eomatch-find = "eomatch.find_and_catalogue:main"
+eomatch-download = "eomatch.manage_products:_main_download"
+eomatch-remove = "eomatch.manage_products:_main_remove"
+eomatch-preview = "eomatch.generate_previews:main"
+eomatch-ingest = "eomatch.ingest:main"
+eomatch-query = "eomatch.query:main"
+eomatch-enrich = "eomatch.enrich:main"
+eomatch-add-asset = "eomatch.add_asset:main"
+eomatch-status = "eomatch.status:main"
+
+[project.urls]
+Homepage = "https://comet-toolkit.org/meteor"
+
+[tool.setuptools.packages.find]
+include = ["eomatch*"]
+exclude = ["deploy*", "quality_documentation*"]
+
+[tool.setuptools.package-data]
+eomatch = [
+    "etc/default_config.yaml",
+    "etc/user_config.yaml",
+    "etc/muindex_model.yaml",
+    "etc/eodag.yml",
+]
+
+[tool.setuptools_scm]
+# version inferred from git tags (e.g. v0.1.0); no extra config needed
+
+[tool.mypy]
+allow_untyped_globals = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["eomatch.tests.*", "eomatch.*.tests.*"]
+ignore_errors = true
+
+[tool.pytest.ini_options]
+testpaths = [
+    "eomatch/tests",
+    "eomatch/finder/tests",
+    "eomatch/enrich/tests",
+    "tests",
+]
+
+[tool.ruff]
+line-length = 120
+exclude = ["docs"]
+
+[tool.ruff.lint]
+extend-ignore = ["W291"]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports and post-init imports are intentional in the package __init__
+"eomatch/__init__.py" = ["E402", "F401"]

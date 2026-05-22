@@ -1,0 +1,35 @@
+// STAC Browser custom CSS/SCSS.
+// Copy this file to custom.scss and edit as needed.
+// This file is never changed upstream — safe to customise freely.
+// Applied at build time — rebuild the container after changing.
+//
+// Note: the logo is controlled via SCSS variables in variables.scss,
+// not here.  See variables.scss.example for the $logo / $logo-image settings.
+
+// ---------------------------------------------------------------------------
+// Header background colour
+// ---------------------------------------------------------------------------
+// Give the navbar a solid brand-coloured background.
+
+// #stac-browser header.site {
+//   background-color: $primary;
+//
+//   .logo,
+//   .title span[role="banner"],
+//   .actions .btn { color: white; }
+// }
+
+// ---------------------------------------------------------------------------
+// Footer — usage notes and API link
+// ---------------------------------------------------------------------------
+// A short notice bar shown below all page content.
+
+// #stac-browser::after {
+//   content: "Matchmaker Central Catalogue  ·  Query the STAC API at /api/  ·  See the docs for CQL2 filter examples";
+//   display: block;
+//   text-align: center;
+//   padding: 0.75rem 1rem;
+//   font-size: 0.85rem;
+//   color: #6c757d;
+//   border-top: 1px solid #dee2e6;
+// }

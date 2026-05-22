@@ -1,0 +1,111 @@
+// STAC Browser runtime configuration.
+// Copy this file to config.js and edit before starting the stack.
+// config.js is volume-mounted into the container — no rebuild needed after changes.
+//
+// For branding (logo, colours, footer text) see theme/custom.scss.example
+// and theme/variables.scss.example — those require a container rebuild.
+
+window.STAC_BROWSER_CONFIG = {
+
+  // ---------------------------------------------------------------------------
+  // Required — set to the public-facing API URL.
+  // ---------------------------------------------------------------------------
+  catalogUrl: "http://your-server:8000/external/",
+
+  // ---------------------------------------------------------------------------
+  // Catalogue identity
+  // ---------------------------------------------------------------------------
+
+  // Title shown in the browser tab and navbar (falls back to the catalog JSON title).
+  catalogTitle: "Matchmaker Catalogue",
+
+  // Prevent users from switching to a different catalog root.
+  allowSelectCatalog: false,
+
+  // ---------------------------------------------------------------------------
+  // Catalog traversal
+  // ---------------------------------------------------------------------------
+
+  // Whether to allow browsing STAC data from domains outside catalogUrl.
+  // allowExternalAccess: false,
+
+  // Additional domains that receive authentication headers.
+  // allowedDomains: [],
+
+  // Priority for API catalog traversal: "collections", "childs", or null (default).
+  // apiCatalogPriority: null,
+
+  // ---------------------------------------------------------------------------
+  // Display
+  // ---------------------------------------------------------------------------
+
+  // Default item list layout: "cards" or "list".
+  // cardViewMode: "cards",
+
+  // Default sort order: "asc", "desc", or null (source order).
+  // cardViewSort: "asc",
+
+  // Number of items requested per page.
+  // itemsPerPage: 12,
+
+  // Maximum items per page users can select.
+  // maxItemsPerPage: 1000,
+
+  // Show keywords in item/catalog cards.
+  // showKeywordsInItemCards: false,
+  // showKeywordsInCatalogCards: false,
+
+  // Show thumbnail links in the assets panel.
+  // showThumbnailsAsAssets: false,
+
+  // Reserved space [height, width] for thumbnails in cards.
+  // defaultThumbnailSize: null,
+
+  // ---------------------------------------------------------------------------
+  // Map / GeoTIFF
+  // ---------------------------------------------------------------------------
+
+  // Show a globe overview on the landing page.
+  // showGlobe: true,
+
+  // Maximum preview images rendered on the map at once.
+  // maxPreviewsOnMap: 50,
+
+  // Render non-COG GeoTIFFs automatically (can be slow for large files).
+  // displayGeoTiffByDefault: false,
+
+  // Fall back to server-side tile rendering when client-side fails.
+  // useTileLayerAsFallback: true,
+
+  // Pixel resolution cap when rendering GeoTIFFs client-side.
+  // geoTiffResolution: 128,
+
+  // HTML crossorigin attribute for media requests: "anonymous", "use-credentials", or null.
+  // crossOriginMedia: null,
+
+  // ---------------------------------------------------------------------------
+  // Authentication (experimental)
+  // ---------------------------------------------------------------------------
+  // Uncomment and configure for protected catalogues.
+  // authConfig: null,
+
+  // ---------------------------------------------------------------------------
+  // Localisation
+  // ---------------------------------------------------------------------------
+  // locale: "en",
+  // fallbackLocale: "en",
+  // supportedLocales: ["en"],
+  // detectLocaleFromBrowser: false,
+  // storeLocale: true,
+
+  // ---------------------------------------------------------------------------
+  // Social sharing
+  // ---------------------------------------------------------------------------
+  // Services to offer when sharing an item link.
+  // socialSharing: [],   // options: "email", "bsky", "mastodon", "x"
+
+  // ---------------------------------------------------------------------------
+  // Proxy (deprecated — prefer the nginx proxy in this stack instead)
+  // ---------------------------------------------------------------------------
+  stacProxyUrl: null,
+};

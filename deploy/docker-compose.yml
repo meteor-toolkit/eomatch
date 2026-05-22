@@ -1,0 +1,110 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+
+  # -------------------------------------------------------------------------
+  # PostgreSQL with pgSTAC schema
+  # -------------------------------------------------------------------------
+  db:
+    image: ghcr.io/stac-utils/pgstac:v0.9.11
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eomatch}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Expose postgres so eomatch-ingest can connect from other machines.
+      # Restrict this port to the internal network at the firewall level.
+      - "${POSTGRES_LISTEN_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *default-logging
+
+  # -------------------------------------------------------------------------
+  # STAC API (internal — full assets, write-enabled with API key)
+  # -------------------------------------------------------------------------
+  api-internal:
+    image: ghcr.io/stac-utils/stac-fastapi-pgstac:6.2.2
+    environment:
+      POSTGRES_HOST_READER: db
+      POSTGRES_HOST_WRITER: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DBNAME: ${POSTGRES_DB:-eomatch}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASS: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8080
+      ROOT_PATH: /api
+      STAC_FASTAPI_TITLE: EOMatch Catalogue (Internal)
+      STAC_FASTAPI_DESCRIPTION: NPL eomatch internal catalogue — full assets
+      STAC_FASTAPI_VERSION: "1.0"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  # -------------------------------------------------------------------------
+  # External STAC API — same database, file:// assets stripped from responses
+  # -------------------------------------------------------------------------
+  api-external:
+    build:
+      context: ./filter-proxy
+    environment:
+      UPSTREAM_URL: http://api-internal:8080
+      STALE_THRESHOLD_HOURS: ${STALE_THRESHOLD_HOURS:-48}
+    depends_on:
+      - api-internal
+    restart: unless-stopped
+    logging: *default-logging
+
+  # -------------------------------------------------------------------------
+  # STAC Browser
+  # Built from source — first build takes several minutes.
+  # Configure the catalog URL in deploy/browser/config.js (copy from config.js.example).
+  # -------------------------------------------------------------------------
+  browser:
+    build:
+      context: ./browser
+    volumes:
+      - ./browser/config.js:/usr/share/nginx/html/config.js:ro
+    restart: unless-stopped
+    logging: *default-logging
+
+  # -------------------------------------------------------------------------
+  # nginx reverse proxy
+  # Exposes everything on port 8000:
+  #   /api/    → stac-fastapi (POST/PUT/DELETE require Authorization: Bearer <key>)
+  #   /        → STAC Browser
+  # -------------------------------------------------------------------------
+  proxy:
+    image: nginx:alpine
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/entrypoint.sh:/entrypoint.sh:ro
+      # Mount the catalogue root to serve asset files (thumbnails etc.) statically.
+      # Set CATALOGUE_PATH in .env to the local catalogue directory.
+      - ${CATALOGUE_PATH:-/tmp}:/catalogue:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      INGEST_API_KEY: ${INGEST_API_KEY:?INGEST_API_KEY must be set}
+    ports:
+      - "${LISTEN_PORT:-8000}:8000"
+    depends_on:
+      - api-internal
+      - api-external
+      - browser
+    restart: unless-stopped
+    logging: *default-logging
+
+volumes:
+  pgdata:

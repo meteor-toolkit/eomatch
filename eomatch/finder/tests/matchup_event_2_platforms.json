@@ -1,0 +1,131 @@
+{"collections": [
+    "LANDSAT_C2L1",
+    "S2_MSI_L1C"
+  ],
+    "n_products": 4,
+  "longitude_minimum": 34.0,
+  "latitude_minimum": 44.0,
+  "lon_maximum": 36.0,
+  "lat_maximmum": 46.0,
+
+
+  "products": [
+    {
+      "constellation": "Sentinel-2",
+      "platform": "S2A",
+      "collection": "S2_MSI_L1C",
+      "id": "S2A_EVT1_001",
+      "geometry": "POLYGON ((34 45, 36 45, 36 47, 34 47, 34 45))",
+      "start_time": "2022-05-21T08:30:00+00:00",
+      "stop_time": "2022-05-21T08:30:00+00:00",
+      "url": "",
+      "quicklook": "",
+      "prod_dict": {
+        "type": "Feature",
+        "geometry": { "type": "Polygon", "coordinates": [[[34,45],[36,45],[36,47],[34,47],[34,45]]] },
+        "properties": { "constellation": "SENTINEL-2", "platform": "S2A" }
+      },
+      "filter_dict": {}
+    },
+    {
+      "constellation": "Sentinel-2",
+      "platform": "S2A",
+      "collection": "S2_MSI_L1C",
+      "id": "S2A_EVT1_002",
+      "geometry": "POLYGON ((35 46, 36 46, 36 47, 35 47, 35 46))",
+      "start_time": "2022-05-21T08:35:00+00:00",
+      "stop_time": "2022-05-21T08:35:00+00:00",
+      "url": "",
+      "quicklook": "",
+      "prod_dict": {
+        "type": "Feature",
+        "geometry": { "type": "Polygon", "coordinates": [[[35,46],[36,46],[36,47],[35,47],[35,46]]] },
+        "properties": { "constellation": "SENTINEL-2", "platform": "S2A" }
+      },
+      "filter_dict": {}
+    },
+    {
+      "constellation": "Landsat",
+      "platform": "Landsat-9",
+      "collection": "LANDSAT_C2L1",
+      "id": "L9_EVT1_001",
+      "geometry": "POLYGON ((34.5 45.5, 36.5 45.5, 36.5 47.5, 34.5 47.5, 34.5 45.5))",
+      "start_time": "2022-05-21T09:00:00+00:00",
+      "stop_time": "2022-05-21T09:00:00+00:00",
+      "url": "",
+      "quicklook": "",
+      "prod_dict": {
+        "type": "Feature",
+        "geometry": { "type": "Polygon", "coordinates": [[[34.5,45.5],[36.5,45.5],[36.5,47.5],[34.5,47.5],[34.5,45.5]]] },
+        "properties": { "constellation": "LANDSAT", "platform": "LANDSAT-9" }
+      },
+      "filter_dict": {}
+    },
+    {
+      "constellation": "Landsat",
+      "platform": "Landsat-9",
+      "collection": "LANDSAT_C2L1",
+      "id": "L9_EVT1_002",
+      "geometry": "POLYGON ((35 46, 36 46, 36 47, 35 47, 35 46))",
+      "start_time": "2022-05-21T09:05:00+00:00",
+      "stop_time": "2022-05-21T09:05:00+00:00",
+      "url": "",
+      "quicklook": "",
+      "prod_dict": {
+        "type": "Feature",
+        "geometry": { "type": "Polygon", "coordinates": [[[35,46],[36,46],[36,47],[35,47],[35,46]]] },
+        "properties": { "constellation": "LANDSAT", "platform": "LANDSAT-9" }
+      },
+      "filter_dict": {}
+    },
+    
+{
+      "constellation": "Sentinel-2",
+      "platform": "S2A",
+      "collection": "S2_MSI_L1C",
+      "id": "S2A_EVT1_NO_OVERLAP",
+      "geometry": "POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))",
+      "start_time": "2022-05-21T08:40:00+00:00",
+      "stop_time": "2022-05-21T08:40:00+00:00",
+      "url": "",
+      "quicklook": "",
+      "prod_dict": {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[0,0],[1,0],[1,1],[0,1],[0,0]]]
+        },
+        "properties": {
+          "constellation": "SENTINEL-2",
+          "platform": "S2A"
+        }
+      },
+      "filter_dict": {}
+    },
+
+    {
+      "constellation": "Landsat",
+      "platform": "Landsat-9",
+      "collection": "LANDSAT_C2L1",
+      "id": "L9_EVT1_NO_OVERLAP",
+      "geometry": "POLYGON ((100 100, 101 100, 101 101, 100 101, 100 100))",
+      "start_time": "2022-05-21T09:10:00+00:00",
+      "stop_time": "2022-05-21T09:10:00+00:00",
+      "url": "",
+      "quicklook": "",
+      "prod_dict": {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[100,100],[101,100],[101,101],[100,101],[100,100]]]
+        },
+        "properties": {
+          "constellation": "LANDSAT",
+          "platform": "LANDSAT-9"
+        }
+      },
+      "filter_dict": {}
+    }
+
+  ]
+}

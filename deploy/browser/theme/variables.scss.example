@@ -1,0 +1,41 @@
+// STAC Browser SCSS variable overrides.
+// Copy this file to variables.scss and uncomment/edit the values you want.
+// These are applied at build time — rebuild the container after changing them.
+//
+// This file is PREPENDED to the upstream variables.scss at build time, so
+// definitions here take precedence over upstream !default values.
+//
+// Full list of Bootstrap variables:
+//   https://github.com/twbs/bootstrap/blob/v5.3.8/scss/_variables.scss
+
+// ---------------------------------------------------------------------------
+// Logo
+// ---------------------------------------------------------------------------
+// Place logo.png in deploy/browser/ alongside the Dockerfile, then uncomment:
+
+// $logo: 'image';               // switch the navbar from text to image mode
+// $logo-image: './theme/logo.png';    // PNG from theme/ — path relative to src/ (webpack bundles it)
+// $logo-image-height: 2.5rem;  // height of the logo in the navbar
+
+// ---------------------------------------------------------------------------
+// Brand colours
+// ---------------------------------------------------------------------------
+
+// Primary colour — used for the header border, buttons, and links.
+// $primary: #003087;   // NPL dark blue (example)
+
+// ---------------------------------------------------------------------------
+// Typography
+// ---------------------------------------------------------------------------
+
+// $font-family-sans-serif: "Arial", sans-serif;
+// $headings-font-family:   "Arial", sans-serif;
+// $header-font-size:       1.5rem;
+// $header-font-weight:     600;
+
+// ---------------------------------------------------------------------------
+// Layout
+// ---------------------------------------------------------------------------
+
+// $block-gap:           1rem;  // gap between page sections
+// $header-border-width: 3px;   // thickness of the coloured header bottom border

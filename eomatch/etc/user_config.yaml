@@ -1,0 +1,146 @@
+# eomatch user configuration
+# ==============================
+# Located at ~/.config/eomatch/user_config.yaml
+#
+# Keys in this file are merged on top of the package defaults, so you only
+# need to supply values you want to override.  The merge is deep for nested
+# sections (read.defaults, read.collections, etc.) and last-writer-wins for
+# scalar keys.
+#
+# Any key can also be overridden at run time by passing a second YAML file
+# via the --config flag on any eomatch CLI command.  The layering order is:
+#
+#   package defaults  <  user_config.yaml  <  --config file
+#
+# Run `eomatch-init` at any time to regenerate this file from the
+# package defaults.
+
+# ---------------------------------------------------------------------------
+# STAC catalogue
+# Used by: MatchupCatalogue, eomatch-find, eomatch-download,
+#          eomatch-remove, eomatch-preview
+# ---------------------------------------------------------------------------
+matchup_catalogue:
+  # Root directory where the catalogue will be written.
+  # Can also be supplied at run time with --path on the CLI.
+  path:
+  # STAC catalogue ID and human-readable description.
+  id: matchup-catalogue
+  description: Matchup catalogue
+
+# ---------------------------------------------------------------------------
+# Satellite finder settings
+# Used by: Sat2SatMUFinder, eomatch-find
+#
+# Comma-separated; the order of platforms and collections must correspond
+# (i.e. platforms[i] is the satellite that produces collections[i]).
+# ---------------------------------------------------------------------------
+
+# platforms: Sentinel-2A, Landsat-9
+# collections: S2_MSI_L1C, LANDSAT_C2L1
+
+# Search time window — format "YYYY-MM-DD HH:MM:SS".
+# start_time: "2023-01-01 00:00:00"
+# end_time:   "2023-12-31 23:59:59"
+
+# Spatial filter — leave blank to search globally.
+# min_lat:
+# max_lat:
+# min_lon:
+# max_lon:
+
+# --- Orbit crossover detection (orbitx) ---
+#
+# Option A — per-combo pre-computed NetCDF files (recommended when working
+# with multiple satellite pairs; keys use the platform-aware combo ID format):
+# orbitx_netcdf_files:
+#   LANDSAT_C2L1-Landsat-9-vs-S2_MSI_L1C-S2A: /path/to/LS9_S2A.nc
+#   LANDSAT_C2L1-Landsat-8-vs-S2_MSI_L1C-S2B: /path/to/LS8_S2B.nc
+#
+# Option B — single pre-computed NetCDF (fallback if no per-combo entry found):
+# orbitx_netcdf_path: /path/to/crossovers.nc
+#
+# Option C — run orbitx from scratch (used when neither A nor B is set):
+
+# Satellite position propagation interval in seconds.
+# propagation_sampling_interval: 30
+
+# Orbit interpolation interval around a crossover in seconds.
+# interpolation_sampling_interval: 1
+
+# Maximum cross-track distance (km) to consider two overpasses a matchup.
+# space_diff_threshold: 100.0
+
+# Maximum time difference (seconds) between overpasses to be a matchup.
+# time_diff_threshold: 1800
+
+# Look for crossovers before/after the primary overpass window.
+# check_before: false
+# check_after: false
+
+# Restrict crossovers to ocean-only areas.
+# has_land_ocean_mask: false
+
+# Custom satellite definitions passed to orbitx (blank for standard TLEs).
+# custom_satellites:
+
+# Write orbit track data to disk during propagation.
+# dump_orbit: false
+
+# ---------------------------------------------------------------------------
+# pgSTAC ingest
+# Used by: eomatch-ingest
+#
+# Connection details for the pgSTAC database backing the central catalogue.
+# Override these to point at your deployment.
+# Leave db_password blank and set the PGPASSWORD environment variable instead
+# to avoid storing credentials in this file.
+# ---------------------------------------------------------------------------
+ingest:
+  db_host: localhost
+  db_port: 5432
+  db_name: eomatch
+  db_user: eomatch
+  db_password:
+
+# ---------------------------------------------------------------------------
+# Scientific dataset reading (eoio)
+# Used by: BuildMUDT, Matchup.return_matchup_dataset, eomatch-download
+#
+# Per-collection overrides are merged on top of the package defaults:
+#   - vars_sel and processors are replaced wholesale.
+#   - read_params keys are merged individually.
+# ---------------------------------------------------------------------------
+read:
+  collections: {}
+  # Example — select specific bands per collection:
+  # collections:
+  #   LANDSAT_C2L1:
+  #     vars_sel:
+  #       meas: [B2, B3, B4, B5]
+  #       aux: []
+  #   S2_MSI_L1C:
+  #     vars_sel:
+  #       meas: [B02, B03, B04, B8A]
+  #       aux: []
+  #     read_params:
+  #       metadata_level: false
+
+# ---------------------------------------------------------------------------
+# Preview / thumbnail reading (eoio)
+# Used by: BuildMUPreview, preview_matchup, eomatch-preview
+#
+# Kept separate from the main "read" section so preview reads use a
+# lightweight config (RGB only, no metadata) without affecting scientific
+# dataset builds.  The "rgb" sentinel is resolved by eoio to the
+# natural-colour bands for each collection.
+# ---------------------------------------------------------------------------
+preview:
+  read:
+    collections: {}
+    # Example — use a specific band combination for a collection instead of
+    # the default natural-colour composite:
+    # collections:
+    #   S2_MSI_L1C:
+    #     vars_sel:
+    #       meas: [B04, B03, B02]

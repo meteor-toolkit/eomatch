@@ -1,0 +1,51 @@
+ingest:
+  # pgSTAC database connection used by eomatch-ingest.
+  # Password can be omitted here and supplied via the PGPASSWORD environment
+  # variable instead.
+  db_host: localhost
+  db_port: 5432
+  db_name: eomatch
+  db_user: eomatch
+  db_password:
+
+read:
+  # Global defaults applied to every product regardless of collection.
+  # Per-collection entries below are merged on top (sub-key level).
+  defaults:
+    vars_sel:
+      meas: []
+      aux: []
+    read_params:
+      use_chunks: false
+      metadata_level: true
+      save_extracted: false
+    processors: {}
+
+  # Per-collection overrides. Keys must match the STAC collection ID
+  # (e.g. the value of product.collection). Any key present here is
+  # merged on top of the global defaults above.
+  collections: {}
+  # Example:
+  #   LANDSAT_C2L1:
+  #     vars_sel:
+  #       meas: [B2, B3, B4, B5]
+  #   S2_MSI_L1C:
+  #     vars_sel:
+  #       meas: [B02, B03, B04, B8A]
+
+preview:
+  # Read defaults used by BuildMUPreview / preview_matchup.
+  # Kept separate from the main "read" section so that previews use a
+  # lightweight configuration (RGB only, no metadata) without affecting
+  # scientific dataset builds.
+  read:
+    defaults:
+      vars_sel:
+        meas: rgb   # eoio resolves "rgb" to the natural-colour bands per collection (must be a string, not a list)
+        aux: []
+      read_params:
+        use_chunks: false
+        metadata_level: false
+        save_extracted: false
+      processors: {}
+    collections: {}

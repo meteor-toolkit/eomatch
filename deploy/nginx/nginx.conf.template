@@ -1,0 +1,86 @@
+worker_processes 1;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    # ---------------------------------------------------------------------------
+    # Rate limiting — protect the external API from scrapers.
+    # 10 req/s sustained per IP; bursts up to 30 requests are allowed.
+    # Excess requests receive a 429 response with a JSON body.
+    # ---------------------------------------------------------------------------
+    limit_req_zone $binary_remote_addr zone=external:10m rate=10r/s;
+    limit_req_status 429;
+
+    # ---------------------------------------------------------------------------
+    # Write-access control for the internal API.
+    # Reads (GET/HEAD/OPTIONS) pass unconditionally.
+    # Writes (POST/PUT/DELETE/PATCH) require the correct Bearer token.
+    # envsubst substitutes ${INGEST_API_KEY} at container startup.
+    # ---------------------------------------------------------------------------
+    map "$request_method:$http_authorization" $write_access {
+        ~^(GET|HEAD|OPTIONS):   ok;
+        "POST:Bearer ${INGEST_API_KEY}"   ok;
+        "PUT:Bearer ${INGEST_API_KEY}"    ok;
+        "DELETE:Bearer ${INGEST_API_KEY}" ok;
+        "PATCH:Bearer ${INGEST_API_KEY}"  ok;
+        default                           deny;
+    }
+
+    server {
+        listen 8000;
+
+        # Custom JSON response for rate-limited requests.
+        error_page 429 @rate_limited;
+        location @rate_limited {
+            default_type application/json;
+            return 429 '{"detail":"Too many requests — please slow down and retry."}';
+        }
+
+        # Internal STAC API — full assets, write-enabled with API key
+        location /api/ {
+            if ($write_access = deny) {
+                return 401 '{"detail":"Invalid or missing API key"}';
+                add_header Content-Type application/json;
+            }
+            proxy_pass         http://api-internal:8080/;
+            proxy_set_header   Host $http_host;
+            proxy_set_header   X-Forwarded-For $remote_addr;
+            proxy_set_header   X-Forwarded-Host $http_host;
+            proxy_set_header   X-Forwarded-Prefix /api;
+        }
+
+        # External STAC API — file:// assets stripped, read-only, rate-limited
+        location /external/ {
+            limit_req zone=external burst=30 nodelay;
+            proxy_pass         http://api-external:8081/;
+            proxy_set_header   Host $http_host;
+            proxy_set_header   X-Forwarded-For $remote_addr;
+            proxy_set_header   X-Forwarded-Host $http_host;
+            proxy_set_header   X-Forwarded-Prefix /external;
+        }
+
+        # Health and staleness endpoints (proxied from the filter proxy)
+        location /health {
+            proxy_pass         http://api-external:8081/health;
+            proxy_set_header   Host $http_host;
+        }
+
+        # Catalogue asset files (thumbnails etc.) served statically from NFS/local mount.
+        # Mount the catalogue root at /catalogue in the proxy container.
+        location /catalogue/ {
+            alias /catalogue/;
+            autoindex off;
+            add_header Access-Control-Allow-Origin *;
+        }
+
+        # STAC Browser — serve at root
+        location / {
+            proxy_pass http://browser:80/;
+        }
+    }
+}
