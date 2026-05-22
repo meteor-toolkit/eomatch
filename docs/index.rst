@@ -33,8 +33,8 @@ scenes overlap in space and time — and build collocated datasets from them.
 Acknowledgements
 ----------------
 
-eomatch has been developed by `Sam Hunt <sam.hunt@npl.co.uk>`_ at the
-`National Physical Laboratory <https://www.npl.co.uk>`_.
+eomatch has been developed by the
+`MetEOR Toolkit Team <team@comet-toolkit.org>`_.
 
 Project status
 --------------
