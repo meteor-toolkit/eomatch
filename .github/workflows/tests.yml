@@ -35,7 +35,7 @@ jobs:
           echo -e "machine gitlab.npl.co.uk\nlogin gitlab-ci-token\npassword ${{ secrets.NPL_GITLAB_TOKEN }}" >> ~/.netrc
 
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,query,enrich]"
 
       - name: Run tests
         run: |
