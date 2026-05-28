@@ -39,7 +39,7 @@ jobs:
       - name: Configure NPL package registry
         run: |
           echo -e "machine gitlab.npl.co.uk\nlogin gitlab-ci-token\npassword ${{ secrets.NPL_GITLAB_TOKEN }}" >> ~/.netrc
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,query,enrich]"
       - run: pytest --cov=eomatch
 
   # -----------------------------------------------------------------------
