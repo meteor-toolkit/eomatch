@@ -1,0 +1,86 @@
+# Example configuration for find_and_catalogue
+#
+# Pass to find_and_catalogue() via EOMatchContext, or on the CLI:
+#   python -m eomatch.find_and_catalogue --config find_and_catalogue.yaml
+#
+# Keys in this file are merged on top of the user config
+# (~/.config/eomatch/user_config.yaml), so you only need to set values
+# that differ from your defaults.
+
+# ---------------------------------------------------------------------------
+# Satellite platforms and EO catalogue collections
+# Comma-separated; order must correspond between the two lists.
+# ---------------------------------------------------------------------------
+platforms: S2A, Landsat-9
+collections: S2_MSI_L1C, LANDSAT_C2L1
+
+# ---------------------------------------------------------------------------
+# Search time window
+# Format: "YYYY-MM-DD HH:MM:SS"
+# ---------------------------------------------------------------------------
+start_time: "2022-05-21 08:35:00"
+end_time: "2022-05-21 08:59:00"
+
+# ---------------------------------------------------------------------------
+# Spatial filter (optional)
+# Leave blank to search globally.
+# ---------------------------------------------------------------------------
+min_lat:
+max_lat:
+min_lon:
+max_lon:
+
+# ---------------------------------------------------------------------------
+# Orbit crossover detection (orbitx)
+#
+# Option A — per-combo NetCDF files (use when running multiple satellite pairs;
+#   keys use the platform-aware combo ID: <col1>-<plat1>-vs-<col2>-<plat2>).
+#   Takes priority over orbitx_netcdf_path for the matching combo.
+#
+# orbitx_netcdf_files:
+#   LANDSAT_C2L1-Landsat-9-vs-S2_MSI_L1C-S2A: /path/to/LS9_S2A.nc
+#   LANDSAT_C2L1-Landsat-8-vs-S2_MSI_L1C-S2B: /path/to/LS8_S2B.nc
+#
+# Option B — single pre-computed NetCDF (fallback if no per-combo entry found):
+#
+# Option C — run orbitx from scratch (used when neither A nor B is set).
+# ---------------------------------------------------------------------------
+# Set this to the path of a pre-computed orbitx NetCDF for the S2A/Landsat-9 pair,
+# or leave blank to run orbitx from scratch (Option C).
+orbitx_netcdf_path:
+
+# Interval at which satellite positions are propagated (seconds as integer).
+propagation_sampling_interval: 30
+
+# Interval at which the orbit is interpolated around a crossover (seconds).
+interpolation_sampling_interval: 1
+
+# Maximum cross-track distance (km) for two satellites to be considered a matchup.
+space_diff_threshold: 100.0
+
+# Maximum time difference (seconds) between satellite overpasses to be a matchup.
+time_diff_threshold: 1800
+
+# Whether to look for crossovers before/after the primary overpass window.
+check_before: false
+check_after: false
+
+# Whether to restrict crossovers to ocean-only areas.
+has_land_ocean_mask: false
+
+# Custom satellite definitions passed to orbitx (leave blank for standard satellites).
+custom_satellites:
+
+# Whether to write orbit track data to disk during propagation.
+dump_orbit: false
+
+# ---------------------------------------------------------------------------
+# STAC catalogue output
+# ---------------------------------------------------------------------------
+matchup_catalogue:
+  # Root directory where the catalogue will be written.
+  # Can also be overridden at runtime with --path on the CLI.
+  path: ./catalogue
+  # STAC catalogue ID and description (rarely need changing).
+  id: matchup-catalogue
+  description: Matchup catalogue

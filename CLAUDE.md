@@ -57,6 +57,56 @@ Three core classes:
 
 Active work to migrate `Matchup` and `MatchupEvent` serialisation from custom JSON to STAC Items via `pystac`. The design uses a separate STAC catalogue with two Collections: one for matchup events (one Item per crossover) and one per matchup type (e.g. S2 vs Landsat), with `derived_from` links pointing back to the underlying `ProductItem` STAC Items and a `matchup:event_id` property linking matchup Items to their parent event Item.
 
+## Publication pipeline
+
+### Remotes
+
+| Remote | URL | Purpose |
+|--------|-----|---------|
+| `origin` | `gitlab.npl.co.uk:eco/tools/eomatch` | Primary repo — full commit history, active development |
+| `meteor` | `github.com:meteor-toolkit/eomatch` | Public mirror — orphan `main` with no history |
+
+### Release process
+
+1. Merge the feature branch into GitLab `main` and push:
+   ```bash
+   git checkout main && git merge <branch>
+   git push origin main
+   ```
+2. Cherry-pick only the new commits onto GitLab `release` (do **not** merge — that pulls in the full history):
+   ```bash
+   git checkout release
+   git cherry-pick <commit(s)>
+   git push origin release
+   ```
+3. Push GitLab `release` to GitHub as `main`:
+   ```bash
+   git push meteor release:main
+   ```
+4. Move the `v*` tag to the latest release commit and force-push:
+   ```bash
+   git tag -f v<X.Y> <commit>
+   git push meteor v<X.Y> --force
+   ```
+
+### PyPI publishing
+
+Triggered by the `publish.yml` GitHub Actions workflow, either on a `v*` tag push or manually via `workflow_dispatch` (type `publish` in the confirmation input).
+
+The workflow: runs tests (must pass) → builds sdist + wheel → publishes to PyPI via OIDC trusted publishing (no API token required).
+
+**One-time PyPI setup:** the trusted publisher must be registered at https://pypi.org/manage/account/publishing/ before the first upload with:
+
+| Field | Value |
+|-------|-------|
+| PyPI project name | `eomatch` |
+| Owner | `meteor-toolkit` |
+| Repository | `eomatch` |
+| Workflow | `publish.yml` |
+| Environment | `pypi` |
+
+A force-pushed tag does **not** re-trigger the workflow — re-run it manually from the GitHub Actions UI.
+
 ### Comments
 
 We want descriptive doc strings for all methods. arguments and return values should be described in the sphinx style (e.g., :param x:) - these don't need to include types as they should be defined in the type annotations. Class doc strings should include code snippets where reasonable.
