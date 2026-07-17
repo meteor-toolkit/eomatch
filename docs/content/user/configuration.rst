@@ -53,6 +53,13 @@ command and by :py:class:`~eomatch.mu_stac.MatchupCatalogue` directly.
 ``path`` can be omitted from the user config and passed at run time instead
 (``--path`` on the CLI, or as a constructor argument in Python).
 
+If ``path`` already contains a saved catalogue, constructing
+:py:class:`~eomatch.mu_stac.MatchupCatalogue` reopens it — preserving its
+existing collections and items — rather than starting a new, empty one. This
+lets a catalogue be built up incrementally across multiple runs by
+re-constructing (or calling :py:meth:`~eomatch.mu_stac.MatchupCatalogue.save`
+again) with the same path.
+
 Satellite finder settings
 ==========================
 
@@ -78,6 +85,11 @@ work with the same sensor pair.
    min_lon: -5.0
    max_lon: 10.0
 
+   # Additional event filters (both optional, default false).
+   exclude_antimeridian_events: false   # drop bboxes spanning > 180° of longitude
+   exclude_night_events: false          # drop events entirely outside local daytime
+                                         # at the site (requires min_lon/max_lon)
+
 Orbit crossover detection is handled by ``orbitx``.  The NetCDF path is
 resolved in the following priority order:
 
@@ -97,6 +109,16 @@ per-combo entry is found in ``orbitx_netcdf_files``):
 .. code-block:: yaml
 
    orbitx_netcdf_path: /path/to/crossovers.nc
+
+``orbitx_netcdf_path`` may contain Python format-string placeholders (e.g.
+``{year}``, ``{platforms}``), letting one config path resolve to a different
+cache file per run without needing an ``orbitx_netcdf_files`` entry for every
+combination:
+
+.. code-block:: yaml
+
+   orbitx_netcdf_path: /data/orbitx/{year}/{platforms}.nc
+   # resolves to e.g. /data/orbitx/2023/S2A_LS9.nc
 
 **Option C — run orbitx from scratch** (used when neither A nor B is set):
 

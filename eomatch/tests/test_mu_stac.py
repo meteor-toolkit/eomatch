@@ -17,6 +17,7 @@ from eomatch.domain import (
     MATCHUP_EVENTS_COLLECTION_PREFIX,
 )
 from eomatch.mu_stac import MatchupCatalogue
+from eomatch.context import EOMatchContext
 
 MATCHUP_COLLECTION_ID = "LANDSAT_C2L1-Landsat-vs-S3_EFR-Sentinel-3"
 EVENTS_COLLECTION_ID = "matchup-events-LANDSAT_C2L1-Landsat8-vs-S3_EFR-Sentinel3A"
@@ -450,6 +451,90 @@ class TestMatchupCatalogue(unittest.TestCase):
         self.assertIsNotNone(col)
         self.assertEqual(len(list(col.get_items())), 1)
 
+    def test_add_event_merges_matchups_when_event_id_collides(self):
+        """Regression test: MatchupEvent.stac_id depends only on platforms,
+        collections, and start_time — not location — so two events discovered
+        by separate searches (e.g. over different ROIs) can collide on ID
+        while carrying different matchups. Re-adding such an event must merge
+        in its new matchups rather than silently dropping them because an
+        event with that ID already exists.
+        """
+        shared_kwargs = dict(
+            platforms=["Landsat8", "Sentinel3A"],
+            collections=["LANDSAT_C2L1", "S3_EFR"],
+            start_time=dt.datetime(2022, 6, 7, 23, 0, 0),
+            stop_time=dt.datetime(2022, 6, 7, 23, 59, 59),
+        )
+        event_a = MatchupEvent(
+            latitude_minimum=-46.0,
+            longitude_minimum=136.0,
+            latitude_maximum=-31.0,
+            longitude_maximum=153.0,
+            **shared_kwargs,
+        )
+        event_b = MatchupEvent(
+            latitude_minimum=10.0,
+            longitude_minimum=10.0,
+            latitude_maximum=20.0,
+            longitude_maximum=20.0,
+            **shared_kwargs,
+        )
+        self.assertEqual(event_a.stac_id, event_b.stac_id, "test setup requires colliding event IDs")
+
+        offset = dt.timedelta(days=1)
+        l8_p2 = _make_mock_product(
+            "Landsat", "LANDSAT_C2L1", "L8_ID_2", L8_GEOMETRY, L8_START + offset, L8_STOP + offset
+        )
+        s3_p2 = _make_mock_product("Sentinel-3", "S3_EFR", "S3_ID_2", S3_GEOMETRY, S3_START + offset, S3_STOP + offset)
+        mu_b = Matchup(_FakeProductItemSet([l8_p2, s3_p2]))
+
+        event_a.matchup_set = MatchupSet([self.mu])
+        event_b.matchup_set = MatchupSet([mu_b])
+
+        self.catalogue.add_event(event_a)
+        item = self.catalogue.add_event(event_b)
+
+        events_col = self.catalogue.catalog.get_child(EVENTS_COLLECTION_ID)
+        self.assertEqual(len(list(events_col.get_items())), 1, "colliding event IDs must not create duplicate events")
+
+        matchup_col = self.catalogue.catalog.get_child(MATCHUP_COLLECTION_ID)
+        self.assertEqual(len(list(matchup_col.get_items())), 2, "both events' matchups should be present")
+
+        mu_links = [
+            lnk for lnk in item.links if lnk.rel == "related" and lnk.extra_fields.get("matchup:role") == "matchup"
+        ]
+        self.assertEqual(len(mu_links), 2, "event item should link to both matchups")
+
+    def test_add_event_rerun_with_same_matchup_does_not_duplicate_links(self):
+        """Re-adding an identical event (e.g. re-running the same ROI search)
+        must not create duplicate matchup links, even though add_event() now
+        merges in matchups on a colliding event ID."""
+        event = MatchupEvent(
+            platforms=["Landsat8", "Sentinel3A"],
+            collections=["LANDSAT_C2L1", "S3_EFR"],
+            start_time=dt.datetime(2022, 6, 7, 23, 0, 0),
+            stop_time=dt.datetime(2022, 6, 7, 23, 59, 59),
+            latitude_minimum=-46.0,
+            longitude_minimum=136.0,
+            latitude_maximum=-31.0,
+            longitude_maximum=153.0,
+        )
+        event.matchup_set = MatchupSet([self.mu])
+
+        self.catalogue.add_event(event)
+        item = self.catalogue.add_event(event)
+
+        events_col = self.catalogue.catalog.get_child(EVENTS_COLLECTION_ID)
+        self.assertEqual(len(list(events_col.get_items())), 1)
+
+        matchup_col = self.catalogue.catalog.get_child(MATCHUP_COLLECTION_ID)
+        self.assertEqual(len(list(matchup_col.get_items())), 1)
+
+        mu_links = [
+            lnk for lnk in item.links if lnk.rel == "related" and lnk.extra_fields.get("matchup:role") == "matchup"
+        ]
+        self.assertEqual(len(mu_links), 1)
+
     def test_add_event_with_matchup_set_links_event_id(self):
         event = MatchupEvent(
             platforms=["Landsat8", "Sentinel3A"],
@@ -513,6 +598,102 @@ class TestMatchupCatalogue(unittest.TestCase):
             event_ids = [i.id for i in reopened.catalog.get_child(EVENTS_COLLECTION_ID).get_items()]
             self.assertEqual(len(event_ids), 1)
 
+            mu_col = reopened.catalog.get_child(MATCHUP_COLLECTION_ID)
+            self.assertIsNotNone(mu_col)
+            self.assertEqual(len(list(mu_col.get_items())), 1)
+
+    def test_constructing_with_existing_path_reopens_instead_of_raising(self):
+        self.catalogue.add_event(EVENT)
+        self.catalogue.add_matchup(self.mu)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.catalogue.save(tmpdir)
+
+            # Previously raised FileExistsError; now reopens the catalogue at
+            # this path instead, so it can be built up across multiple runs.
+            reopened = MatchupCatalogue(path=tmpdir)
+            mu_col = reopened.catalog.get_child(MATCHUP_COLLECTION_ID)
+            self.assertIsNotNone(mu_col)
+            self.assertEqual(len(list(mu_col.get_items())), 1)
+
+    def test_constructing_with_path_from_context_also_reopens(self):
+        """Regression test: the reopen check must also fire when the path comes
+        from matchup_catalogue.path in the context rather than being passed
+        explicitly — e.g. find_and_catalogue(context=ctx) with no path= — since
+        that is a documented, supported way to set the catalogue path.  Using
+        the raw (unresolved) path argument for the reopen check instead of the
+        resolved path missed this case, silently creating a fresh empty
+        catalogue that then overwrote the existing one on save().
+        """
+        self.catalogue.add_event(EVENT)
+        self.catalogue.add_matchup(self.mu)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.catalogue.save(tmpdir)
+
+            ctx = EOMatchContext({"matchup_catalogue": {"path": tmpdir}})
+            reopened = MatchupCatalogue(context=ctx)
+            mu_col = reopened.catalog.get_child(MATCHUP_COLLECTION_ID)
+            self.assertIsNotNone(mu_col)
+            self.assertEqual(len(list(mu_col.get_items())), 1)
+
+            # And saving it back must not have discarded the existing content.
+            reopened.save()
+            final_catalogue = MatchupCatalogue.open(tmpdir)
+            mu_col = final_catalogue.catalog.get_child(MATCHUP_COLLECTION_ID)
+            self.assertIsNotNone(mu_col)
+            self.assertEqual(len(list(mu_col.get_items())), 1)
+
+    def test_save_to_existing_catalog_preserves_existing_collection_items(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.catalogue.add_event(EVENT)
+            self.catalogue.add_matchup(self.mu)
+            self.catalogue.save(tmpdir)
+
+            offset = dt.timedelta(days=1)
+            l8_p2 = _make_mock_product(
+                "Landsat",
+                "LANDSAT_C2L1",
+                "L8_ID_2",
+                L8_GEOMETRY,
+                L8_START + offset,
+                L8_STOP + offset,
+            )
+            s3_p2 = _make_mock_product(
+                "Sentinel-3",
+                "S3_EFR",
+                "S3_ID_2",
+                S3_GEOMETRY,
+                S3_START + offset,
+                S3_STOP + offset,
+            )
+            mu2 = Matchup(_FakeProductItemSet([l8_p2, s3_p2]))
+
+            reopened = MatchupCatalogue(path=tmpdir)
+            reopened.add_matchup(mu2)
+            reopened.save(tmpdir)
+
+            final_catalogue = MatchupCatalogue.open(tmpdir)
+            mu_col = final_catalogue.catalog.get_child(MATCHUP_COLLECTION_ID)
+            self.assertIsNotNone(mu_col)
+            self.assertEqual(len(list(mu_col.get_items())), 2)
+
+    def test_save_to_directory_name_containing_dot(self):
+        """Regression test: pystac's normalize_hrefs misreads a dotted directory
+        basename (e.g. "buf0.125deg") as a file path, writing catalog.json into
+        the parent directory instead of the intended one, unless the full
+        catalog.json path is passed rather than just the directory."""
+        self.catalogue.add_event(EVENT)
+        self.catalogue.add_matchup(self.mu)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dotted_dir = os.path.join(tmpdir, "catalogue_buf0.125deg")
+            self.catalogue.save(dotted_dir)
+
+            self.assertTrue(os.path.exists(os.path.join(dotted_dir, "catalog.json")))
+            self.assertFalse(os.path.exists(os.path.join(tmpdir, "catalog.json")))
+
+            reopened = MatchupCatalogue.open(dotted_dir)
             mu_col = reopened.catalog.get_child(MATCHUP_COLLECTION_ID)
             self.assertIsNotNone(mu_col)
             self.assertEqual(len(list(mu_col.get_items())), 1)

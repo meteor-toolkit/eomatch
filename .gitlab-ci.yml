@@ -67,6 +67,9 @@ mypy:
 
 .pytest:
   extends: .py_venv
+  before_script:
+    - !reference [.py_venv, before_script]
+    - pip install -e ".[query]"
   script:
     - mkdir -p test_report
     - >

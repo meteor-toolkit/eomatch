@@ -50,6 +50,12 @@ class BaseMUFinder(BaseProcessor):
         :py:class:`~scrappi.ProductItemSet` is returned rather than ``None``.
         Results are sorted by ``start_time`` before being returned.
 
+        The ``platform`` key is stripped from the query before it is passed to
+        scrappi.  Passing it through causes scrappi to forward it to eodag as a
+        provider-level search filter (e.g. ``platformSerialIdentifier='A'`` on
+        cop_dataspace) which frequently returns zero results.  Platform-level
+        filtering is instead performed in the caller after products are returned.
+
         :param query: scrappi query dict (keys depend on the collection type).
         :param context: optional :py:class:`~scrappi.ScrappiContext`; defaults to
             ``ScrappiContext()``.
@@ -58,7 +64,8 @@ class BaseMUFinder(BaseProcessor):
         if context is None:
             context = ScrappiContext()
 
-        products = perform_query(query, context)
+        scrappi_query = {k: v for k, v in query.items() if k != "platform"}
+        products = perform_query(scrappi_query, context)
         if products is None:
             return scrappi.ProductItemSet()
         products._products.sort(key=lambda prod: prod.start_time)

@@ -242,6 +242,54 @@ class TestMatchup(unittest.TestCase):
         col_reg = mu.collocation_region
         self.assertTrue(col_reg.is_empty)
 
+    def test_stac_id_includes_collocation_region_bounds(self):
+        lon_min, lat_min, lon_max, lat_max = self.mu.collocation_region.bounds
+        expected_suffix = f"{lon_min:.2f}_{lat_min:.2f}_{lon_max:.2f}_{lat_max:.2f}"
+        self.assertTrue(self.mu.stac_id.endswith(expected_suffix))
+
+    def test_stac_id_differs_for_same_time_different_location(self):
+        """Regression test: two matchups with identical per-product timestamps
+        (as produced by a day-precision sensor such as Landsat, which stores
+        every acquisition as midnight UTC) but at different locations must not
+        collide on stac_id.
+        """
+
+        def _make_matchup_at(lon_offset):
+            square = Polygon(
+                [
+                    (lon_offset, 0),
+                    (lon_offset + 1, 0),
+                    (lon_offset + 1, 1),
+                    (lon_offset, 1),
+                    (lon_offset, 0),
+                ]
+            )
+            l8 = ProductItem(
+                constellation="Landsat",
+                platform="Landsat",
+                collection="LANDSAT_C2L1",
+                id=f"LC08_at_{lon_offset}",
+                geometry=square,
+                start_time=dt.datetime(2022, 6, 7, 0, 0, 0),
+                stop_time=dt.datetime(2022, 6, 7, 0, 0, 0),
+            )
+            s3 = ProductItem(
+                constellation="Sentinel-3",
+                platform="Sentinel-3",
+                collection="S3_EFR",
+                id=f"S3A_at_{lon_offset}",
+                geometry=square,
+                start_time=dt.datetime(2022, 6, 7, 23, 38, 57, 833000),
+                stop_time=dt.datetime(2022, 6, 7, 23, 41, 57, 833000),
+            )
+            return Matchup(ProductItemSet([l8, s3]))
+
+        mu_a = _make_matchup_at(0)
+        mu_b = _make_matchup_at(100)
+
+        # Same collections/platforms/timestamps, different location.
+        self.assertNotEqual(mu_a.stac_id, mu_b.stac_id)
+
     def test_time_diff_abs(self):
         self.assertEqual(
             self.mu.time_diff_abs,

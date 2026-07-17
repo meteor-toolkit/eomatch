@@ -28,6 +28,16 @@ __author__ = "Sam Hunt <sam.hunt@npl.co.uk>"
 __all__ = ["MatchupCatalogue"]
 
 
+def _load_catalog(catalog_json: str) -> pystac.Catalog:
+    """Load a catalogue's ``catalog.json``, fixing any ``stac://`` root-link hrefs first.
+
+    :param catalog_json: path to the catalogue's ``catalog.json`` file.
+    :return: loaded catalogue.
+    """
+    _fix_stac_hrefs(os.path.dirname(os.path.abspath(catalog_json)))
+    return pystac.Catalog.from_file(catalog_json)
+
+
 def _fix_stac_hrefs(root_dir: str) -> None:
     """Replace ``stac://`` root-link hrefs with proper relative paths.
 
@@ -137,6 +147,27 @@ class MatchupCatalogue:
         catalog: Optional[pystac.Catalog] = None,
         context: Optional[EOMatchContext] = None,
     ) -> None:
+        """
+        Construct a new empty catalogue, wrap an existing ``pystac.Catalog``, or
+        reopen a catalogue already saved at *path*.
+
+        If *catalog* is not given and *path* points at a directory containing a
+        ``catalog.json``, that catalogue is reopened — preserving its existing
+        collections and items — instead of starting a new, empty one.  This lets
+        a catalogue be built up incrementally by re-constructing (or calling
+        :py:meth:`save` again) with the same path across multiple runs.
+
+        :param id: STAC catalogue ID, used only when creating a new catalogue.
+            Falls back to ``matchup_catalogue.id`` in *context*, then ``"matchup-catalogue"``.
+        :param description: STAC catalogue description, used only when creating a new catalogue.
+            Falls back to ``matchup_catalogue.description`` in *context*, then ``"Matchup catalogue"``.
+        :param path: root directory for the catalogue on disk. Falls back to ``matchup_catalogue.path``
+            in *context*. If it contains an existing ``catalog.json``, that catalogue is reopened.
+        :param catalog: an existing ``pystac.Catalog`` to wrap directly, bypassing *id*/*description*
+            and the reopen check.
+        :param context: :py:class:`~eomatch.context.EOMatchContext` supplying defaults; defaults to
+            ``EOMatchContext()``.
+        """
         if context is None:
             context = EOMatchContext()
         self.context = context
@@ -153,13 +184,20 @@ class MatchupCatalogue:
         if catalog is not None:
             self.catalog = catalog
         else:
-            if path is not None:
-                catalog_json = os.path.join(path, "catalog.json")
-                if os.path.exists(catalog_json):
-                    raise FileExistsError(
-                        f"A catalogue already exists at {catalog_json!r}. Use MatchupCatalogue.open() to load it."
-                    )
-            self.catalog = pystac.Catalog(id=_id, description=_description)
+            # Use _path (which falls back to matchup_catalogue.path in context)
+            # rather than the raw path argument, so the reopen check also fires
+            # when the caller relies on the config for the path — e.g.
+            # find_and_catalogue(context=ctx) without an explicit path=.
+            catalog_json = os.path.join(_path, "catalog.json") if _path is not None else None
+            if catalog_json is not None and os.path.exists(catalog_json):
+                # Reopen and preserve any existing collections/items, rather than
+                # raising, so a catalogue can be built up across multiple runs by
+                # re-constructing with the same path.
+                self.catalog = _load_catalog(catalog_json)
+                self.path = os.path.dirname(os.path.abspath(catalog_json))
+                self.product_fs = STACFileSystem(path=self.path)
+            else:
+                self.catalog = pystac.Catalog(id=_id, description=_description)
 
     def _get_or_create_collection(self, collection_id: str, description: str) -> pystac.Collection:
         existing = self.catalog.get_child(collection_id)
@@ -186,8 +224,16 @@ class MatchupCatalogue:
         :py:meth:`get_events` can navigate forward from event to matchups
         without scanning the whole matchup collection.
 
-        If an Item with the same ID already exists in the catalogue the
-        existing Item is returned unchanged (idempotent).
+        If an Item with the same ID already exists in the catalogue, it is
+        reused rather than duplicated, and any matchups in *event*'s
+        ``matchup_set`` not already linked to it are added and linked. This
+        matters because :py:attr:`~eomatch.domain.MatchupEvent.stac_id`
+        depends only on platforms, collections, and start time — not
+        location — so two searches over different regions (e.g. different
+        ROIs sharing one catalogue) that happen to rediscover the same
+        underlying orbitx crossover produce the same event ID but can carry
+        different matchups; without merging, whichever search adds the event
+        first would silently drop the other's matchups.
         """
         item = event.to_stac_item()
         assert item.collection_id is not None
@@ -196,11 +242,19 @@ class MatchupCatalogue:
             f"Matchup events: {item.collection_id}",
         )
         existing = next(events_col.get_items(item.id), None)
+        linked_mu_ids: set = set()
         if existing is not None:
-            return existing
-        events_col.add_item(item)
+            item = existing
+            for lnk in item.get_links(rel="related"):
+                if lnk.extra_fields.get("matchup:role") != "matchup":
+                    continue
+                lnk.resolve_stac_object()
+                if isinstance(lnk.target, pystac.Item):
+                    linked_mu_ids.add(lnk.target.id)
+        else:
+            events_col.add_item(item)
+
         if event.matchup_set is not None:
-            linked_mu_ids: set = set()
             for mu in event.matchup_set:
                 mu_item = self.add_matchup(mu, event_id=item.id)
                 if mu_item.id not in linked_mu_ids:
@@ -431,11 +485,16 @@ class MatchupCatalogue:
         save_path = path or self.path
         if save_path is None:
             raise ValueError("No path provided — pass a path to save() or set one at construction.")
+        os.makedirs(save_path, exist_ok=True)
         # Template is relative to each collection's directory in pystac 1.x,
         # so omit ${collection} and add .json — items land at
         # {collection}/{year}/{month}/{day}/{id}.json with no double-nesting.
         strategy = pystac.layout.TemplateLayoutStrategy(item_template="${year}/${month}/${day}/${id}.json")
-        self.catalog.normalize_hrefs(save_path, strategy=strategy)
+        # Pass the full catalog.json path rather than the directory so that pystac's
+        # is_file_path() (which uses os.path.splitext) correctly derives the parent
+        # directory.  Passing just the directory fails when its name contains a dot
+        # (e.g. "buf0.125deg") because pystac mistakes it for a file extension.
+        self.catalog.normalize_hrefs(os.path.join(save_path, "catalog.json"), strategy=strategy)
         self.catalog.save(catalog_type=catalog_type)
         _fix_stac_hrefs(save_path)
 
@@ -830,6 +889,5 @@ class MatchupCatalogue:
         if os.path.isdir(path):
             path = os.path.join(path, "catalog.json")
         root_dir = os.path.dirname(os.path.abspath(path))
-        _fix_stac_hrefs(root_dir)
-        catalog = pystac.Catalog.from_file(path)
+        catalog = _load_catalog(path)
         return cls(catalog=catalog, path=root_dir)

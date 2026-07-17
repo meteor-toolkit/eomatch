@@ -250,12 +250,15 @@ class Matchup:
     def stac_id(self) -> Optional[str]:
         """STAC Item ID for this matchup, or ``None`` if no products are set.
 
-        Built from the collection ID and the acquisition datetime of each
-        product in sorted-collection order.  Using per-product datetimes (rather
-        than the single matchup start_time) avoids collisions when one sensor
-        records time at day precision only — e.g. Landsat stores all acquisitions
-        as midnight UTC, so using only its timestamp collapses every same-day
-        matchup to one ID.
+        Built from the collection ID, the acquisition datetime of each product
+        in sorted-collection order, and the collocation region's bounding box.
+        Using per-product datetimes (rather than the single matchup
+        start_time) avoids collisions when one sensor records time at day
+        precision only — e.g. Landsat stores all acquisitions as midnight
+        UTC, so using only its timestamp collapses every same-day matchup to
+        one ID.  The bounding box is appended for the same reason: two
+        same-day acquisitions from a day-precision sensor can still share an
+        identical timestamp while occurring at different locations.
         """
         if self.products is None:
             return None
@@ -264,7 +267,10 @@ class Matchup:
             [p.platform for p in self.products],
         )
         times = "_".join(p.start_time.strftime("%Y%m%dT%H%M%S") for p in self.products)
-        return f"{collection_id}_{times}"
+        collocation_region = self.collocation_region
+        assert collocation_region is not None
+        lon_min, lat_min, lon_max, lat_max = collocation_region.bounds
+        return f"{collection_id}_{times}_{lon_min:.2f}_{lat_min:.2f}_{lon_max:.2f}_{lat_max:.2f}"
 
     def to_stac_item(self, event_id: Optional[str] = None) -> pystac.Item:
         """

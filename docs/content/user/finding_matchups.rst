@@ -84,6 +84,20 @@ are issued.  Set any combination of the following keys in your config:
    start_time: "2023-06-15 00:00:00"
    end_time:   "2023-06-15 23:59:59"
 
+Two further filters are available to remove events that are unlikely to
+produce usable results.  Both default to ``False`` (off), since they are not
+always wanted — e.g. for polar research use cases, or missions that can image
+at night:
+
+.. code-block:: yaml
+
+   exclude_antimeridian_events: true   # drop events whose bbox spans more
+                                        # than 180° of longitude (antimeridian
+                                        # / polar-crossover artefacts)
+   exclude_night_events: true          # drop events entirely outside local
+                                        # daytime at the site (requires
+                                        # min_lon/max_lon to be set)
+
 Inspecting a matchup
 #####################
 

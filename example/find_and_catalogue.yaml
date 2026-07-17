@@ -31,6 +31,18 @@ min_lon:
 max_lon:
 
 # ---------------------------------------------------------------------------
+# Additional event filters (both optional, default false — not every use case
+# wants them, e.g. polar research or night-imaging missions).
+# ---------------------------------------------------------------------------
+# Drop events whose bbox spans more than 180 degrees of longitude
+# (antimeridian / polar-crossover artefacts).
+exclude_antimeridian_events: false
+
+# Drop events entirely outside local daytime at the site. Requires min_lon
+# and max_lon to be set.
+exclude_night_events: false
+
+# ---------------------------------------------------------------------------
 # Orbit crossover detection (orbitx)
 #
 # Option A — per-combo NetCDF files (use when running multiple satellite pairs;
@@ -46,7 +58,9 @@ max_lon:
 # Option C — run orbitx from scratch (used when neither A nor B is set).
 # ---------------------------------------------------------------------------
 # Set this to the path of a pre-computed orbitx NetCDF for the S2A/Landsat-9 pair,
-# or leave blank to run orbitx from scratch (Option C).
+# or leave blank to run orbitx from scratch (Option C). May contain Python
+# format-string placeholders (e.g. {year}, {platforms}) to resolve to a
+# different cache file per run.
 orbitx_netcdf_path:
 
 # Interval at which satellite positions are propagated (seconds as integer).
